@@ -1,85 +1,106 @@
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Scanner;
 
 //TIP To <b>Run</b> code, press <shortcut actionId="Run"/> or
 // click the <icon src="AllIcons.Actions.Execute"/> icon in the gutter.
 public class Main {
+
+    private static final int[] PUERTOS = {21,22,80,443};
+
     public static void main(String[] args) {
         Scanner sc = new Scanner(System.in);
         while (true){
             System.out.println("Servicio de Conexiones con Sockets");
             System.out.println("Ingresa una ip o escribe 'salir' si quieres terminar el programa");
-            String dominio = sc.nextLine();
+
+            String dominio = sc.nextLine().trim();
             if(dominio.equalsIgnoreCase("salir")){
                 System.out.println("Saliendo del programa...");
-                sc.close();
                 break;
             }
-            System.out.println("Marca 'A' si quieres conectarte por protocolo FTP: ");
-            System.out.println("Marca 'B' si quieres conectarte por protocolo SSH: ");
-            System.out.println("Marca 'C' si quieres conectarte por protocolo HTTP: ");
-            System.out.println("Marca 'D' si quieres conectarte por protocolo HTTPS: ");
-            System.out.println("Marca 'E' si quires conectarte por un puerto distinto: ");
-            String decision = sc.nextLine();
-            if(decision.equals("A")) {
-                try {
-                    Socket ftp = new Socket(dominio, 21);
-                    System.out.println("Conectado a: " + ftp.getInetAddress());
-                    ftp.close();
-                } catch (IOException e) {
-                    System.out.println("No se pudo conectar: " + e.getMessage());
-                }
-
-            } else if(decision.equals("B")) {
-                try {
-                    Socket ssh = new Socket(dominio, 22);
-                    System.out.println("Conectado a: " + ssh.getInetAddress());
-                    ssh.close();
-                } catch (UnknownHostException e) {
-                    System.out.println("Error con el host: " + e.getMessage());
-                } catch (IOException e) {
-                    System.out.println("No se pudo conectar: " + e.getMessage());
-                }
-
-            } else if(decision.equals("C")) {
-                try {
-                    Socket http = new Socket(dominio, 80);
-                    System.out.println("Conectado a: " + http.getInetAddress());
-                    http.close();
-                } catch (UnknownHostException e) {
-                    System.out.println("Error con el host: " + e.getMessage());
-                } catch (IOException e) {
-                    System.out.println("No se pudo conectar: " + e.getMessage());
-                }
-
-            } else if(decision.equals("D")) {
-                try {
-                    Socket https = new Socket(dominio, 443);
-                    System.out.println("Conectado a: " + https.getInetAddress());
-                    https.close();
-                } catch (UnknownHostException e) {
-                    System.out.println("Error con el host: " + e.getMessage());
-                } catch (IOException e) {
-                    System.out.println("No se pudo conectar: " + e.getMessage());
-                }
-
-            } else if(decision.equals("E")) {
-                System.out.println("Escribe el puerto al que quieres conectarte: ");
-                int puerto = Integer.parseInt(sc.nextLine());
-                try {
-                    Socket socket = new Socket(dominio, puerto);
-                    System.out.println("Conectado a: " + socket.getInetAddress());
-                    socket.close();
-                } catch (UnknownHostException e) {
-                    System.out.println("Error con el host: " + e.getMessage());
-                } catch (IOException e) {
-                    System.out.println("No se pudo conectar: " + e.getMessage());
-                }
-
+            if (dominio.isEmpty()){
+                System.out.println("Dirección vacia. Intenta de nuevo...");
+                continue;
             }
+
+            System.out.println("Pulsa ENTER para probar puertos famosos o escribe un puerto valido...");
+            String puertoInput = sc.nextLine().trim();
+
+            List<Integer> puertosAProbar = new ArrayList<>();
+
+            if (puertoInput.isEmpty()) {
+                for (int p : PUERTOS) {
+                    puertosAProbar.add(p);
+                }
+            } else {
+                int p = Integer.parseInt(puertoInput);
+                if (p < 1 || p > 65535) {
+                    System.out.println("Puerto fuera de rango (1-65535)");
+                    continue;
+                }
+                if (!String.valueOf(p).matches("\\d+")) {
+                    System.out.println("Entrada no válida para el puerto, porfavor intenta denuevo");
+                    continue;
+                }
+                puertosAProbar.add(p);
+            }
+
+            List<Integer> puertosAbiertos = new ArrayList<>();
+            List<Integer> puertosCerrados = new ArrayList<>();
+
+            for (int puerto : puertosAProbar) {
+                boolean abierto = probarPuertos(dominio, puerto);
+                if(abierto) {
+                    puertosAbiertos.add(puerto);
+                } else {
+                    puertosCerrados.add(puerto);
+                }
+            }
+
+            System.out.println();
+            System.out.println("----RESUMEN DE " + dominio + "----");
+            if (!puertosAbiertos.isEmpty()) {
+                System.out.println("Puertos abiertos: ");
+                for (int i = 0; i < puertosAbiertos.size(); i++) {
+                    System.out.print(puertosAbiertos.get(i));
+                    if (i < puertosAbiertos.size() - 1) System.out.print(", ");
+                }
+                System.out.println();
+            } else {
+                System.out.println("Puertos abiertos: ninguno");
+            }
+
+            if (!puertosCerrados.isEmpty()) {
+                System.out.println("Puertos cerrados: ");
+                for (int i = 0; i < puertosCerrados.size(); i++) {
+                    System.out.print(puertosCerrados.get(i));
+                    if (i < puertosCerrados.size() - 1) System.out.print(", ");
+                }
+                System.out.println();
+            } else {
+                System.out.println("Puertos abiertos: ninguno");
+            }
+        }
+        sc.close();
+    }
+
+    public static boolean probarPuertos (String dominio, int puerto){
+        try {
+            Socket socket = new Socket();
+            socket.connect(new InetSocketAddress(dominio,puerto),2000);
+            System.out.println("conectado al puerto: " + puerto);
+            socket.close();
+            return true;
+        } catch (UnknownHostException e) {
+            return false;
+        } catch (IOException e) {
+            return false;
         }
     }
 }
